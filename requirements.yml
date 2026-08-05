@@ -1,0 +1,23 @@
+name: MIL_recur
+channels:
+  - nvidia
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pytorch=2.0.1
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.7  # ← 이것이 핵심
+  - cudatoolkit=11.7   # optional, 대부분 불필요 (pytorch-cuda가 관리)
+  - pip:
+      - numpy==1.26.4
+      - pandas==2.0.3
+      - h5py==3.13.0
+      - scikit_learn==1.6.1
+      - scipy==1.13.1
+      - tqdm==4.65.0
+      - tensorboardX==1.9
+      - protobuf==3.20.3
+      # 기타 pip 패키지...
