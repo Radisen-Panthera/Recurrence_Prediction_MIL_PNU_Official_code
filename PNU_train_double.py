@@ -45,8 +45,8 @@ from sklearn.metrics import roc_auc_score, accuracy_score, f1_score
 from tqdm import tqdm
 
 os.environ["NCCL_DEBUG"] = "INFO"
-os.environ["NCCL_IB_DISABLE"] = "1"  # 인피니밴드 사용 안 하도록 (네트워크 문제 우회)
-os.environ["NCCL_P2P_DISABLE"] = "1"  # P2P 비활성화로 deadlock 우회
+os.environ["NCCL_IB_DISABLE"] = "1"  # disable InfiniBand (work around network issues)
+os.environ["NCCL_P2P_DISABLE"] = "1"  # disable P2P to avoid deadlock
 os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "1"
 
 def get_split_loader(dataset, training = False, batch_size=1):
@@ -138,7 +138,7 @@ parser.add_argument('--test_clinical',   type=str, default='./folds/val_fold0.cs
 parser.add_argument('--test_img',   type=str, default='/mnt/fileserver/Pathology/PNU/embedded_features_512_updated', help='Data directory to WSI features (KBSMC)')
 parser.add_argument('--gpu',   type=int, default=0, help='Which GPU would be used')
 parser.add_argument('--gamma',   type=float, default=1.0, help='power of focal loss penalty to majority')
-parser.add_argument('--dropout',   type=float, default=0.25, help='Dropout ratio') ######## majority 클래스에 fit되는 것을 방지하기 위해 적은 값을 사용
+parser.add_argument('--dropout',   type=float, default=0.25, help='Dropout ratio') ######## use a small value to avoid overfitting to the majority class
 parser.add_argument('--attn_branch',   type=int, default=2, help='# of attention branches') 
 parser.add_argument('--mc_dropout', action='store_true', default=False, help='Use or not with test mc dropout')
 parser.add_argument('--mc_samples',   type=int, default=10, help='# of samples for MC dropouts')
@@ -210,13 +210,13 @@ def train(args, train_dataset, test_dataset, model, device, binary_loss, optimiz
 
     for epoch in range(args.epoch):
         
-        ### Early Stop 조건
+        ### Early-stop condition
 
         ################# TRAIN STEP ######################
         
         train_loss = 0.0
-        train_epoch_logits = []      # (2,) 벡터들을 저장
-        train_epoch_probs = []       # (2,) 확률들을 저장
+        train_epoch_logits = []      # store (2,) vectors
+        train_epoch_probs = []       # store (2,) probabilities
         train_epoch_predictions = []
         train_epoch_targets = []
         
@@ -225,12 +225,12 @@ def train(args, train_dataset, test_dataset, model, device, binary_loss, optimiz
         for batch_idx, (data_WSI, c, name) in enumerate(tqdm(train_loader)):
 
             data_WSI = data_WSI.to(device)
-            c = c.type(torch.LongTensor).to(device)  # LongTensor로 변경!
+            c = c.type(torch.LongTensor).to(device)  # convert to LongTensor!
 
             # Forward pass
             binary_logits, binary_probs, binary_pred, attention_scores = model(x=data_WSI)
 
-            # Loss 계산 (CrossEntropy)
+            # Compute loss (CrossEntropy)
             loss = binary_loss(binary_logits, c)  # 2-class CrossEntropy
             loss_value = loss.item()
             
@@ -250,28 +250,28 @@ def train(args, train_dataset, test_dataset, model, device, binary_loss, optimiz
                 optimizer.step()
                 optimizer.zero_grad()
             
-            # 예측값들 저장
+            # Store predictions
             with torch.no_grad():
-                # 2-class의 경우 class 1 (재발)의 확률을 AUC 계산에 사용
-                prob_class1 = binary_probs[0, 1].cpu().item()  # class 1의 확률
+                # For the 2-class case, use the class-1 (recurrence) probability for AUC
+                prob_class1 = binary_probs[0, 1].cpu().item()  # probability of class 1
                 pred = binary_pred.cpu().item()
                 target = c.cpu().item()
                 
-                train_epoch_logits.append(binary_logits.squeeze().cpu().numpy())  # (2,) 배열
-                train_epoch_probs.append(prob_class1)  # class 1 확률만 저장 (AUC용)
+                train_epoch_logits.append(binary_logits.squeeze().cpu().numpy())  # (2,) array
+                train_epoch_probs.append(prob_class1)  # store only class-1 probability (for AUC)
                 train_epoch_predictions.append(pred)
                 train_epoch_targets.append(target)
 
-        # Epoch 종료 후 성능 평가
+        # Evaluate performance at the end of the epoch
         train_loss /= len(train_loader)
         
         train_epoch_targets = np.array(train_epoch_targets)
-        train_epoch_probs = np.array(train_epoch_probs)  # class 1의 확률들
+        train_epoch_probs = np.array(train_epoch_probs)  # class-1 probabilities
         train_epoch_predictions = np.array(train_epoch_predictions)
         
         pd.DataFrame({"predictions": train_epoch_predictions, "GT" : train_epoch_targets}).to_csv("./{}/df_train_{}.csv".format(args.result_df_path, epoch))
         
-        # AUC 계산 (class 1의 확률 사용)
+        # Compute AUC (using class-1 probabilities)
         if len(np.unique(train_epoch_targets)) > 1:
             auc_score = roc_auc_score(train_epoch_targets, train_epoch_probs)
         else:
@@ -283,7 +283,7 @@ def train(args, train_dataset, test_dataset, model, device, binary_loss, optimiz
         print(f'Epoch: {epoch}, train_loss: {train_loss:.4f}, '
             f'AUC: {auc_score:.4f}, Accuracy: {accuracy:.4f}, F1: {f1:.4f}')
         
-        # TensorBoard 로깅
+        # TensorBoard logging
         writer.add_scalar('Train/Loss', train_loss, epoch)
         writer.add_scalar('Train/AUC', auc_score, epoch)
         writer.add_scalar('Train/Accuracy', accuracy, epoch)
@@ -340,12 +340,12 @@ def train(args, train_dataset, test_dataset, model, device, binary_loss, optimiz
                 test_epoch_uncertainties.append(uncertainty)
             else : 
                 with torch.no_grad():
-                    prob_class1 = binary_probs[0, 1].cpu().item()  # class 1의 확률
+                    prob_class1 = binary_probs[0, 1].cpu().item()  # probability of class 1
                     pred = binary_pred.cpu().item()
                     target = c.cpu().item()
                     
-                    test_epoch_logits.append(binary_logits.squeeze().cpu().numpy())  # (2,) 배열
-                    test_epoch_probs.append(prob_class1)  # class 1 확률만 저장 (AUC용)
+                    test_epoch_logits.append(binary_logits.squeeze().cpu().numpy())  # (2,) array
+                    test_epoch_probs.append(prob_class1)  # store only class-1 probability (for AUC)
                     test_epoch_predictions.append(pred)
                     test_epoch_targets.append(target)
             
@@ -391,7 +391,7 @@ def train(args, train_dataset, test_dataset, model, device, binary_loss, optimiz
         
         torch.save(model.state_dict(), "/home/yscho/code_cloud_MIL_train/{}/checkpoint_{}.pth".format(args.weights_dir, epoch))
 
-        #### Early stop을 위한 patient 진행
+        #### patience tracking for early stopping
 
     writer.close()
 
@@ -403,7 +403,7 @@ def main(args) :
     print("########### ATTENTION BRANCH ########### {}".format(args.attn_branch))
     
     device = "cuda:{}".format(args.gpu)
-    #device = torch.device("cuda") ### Multi-GPU 연산 고려
+    #device = torch.device("cuda") ### consider multi-GPU computation
     
     train_dataset = Dataset_PFS_PNU(csv_path = args.train_clinical,
                         data_dir = args.train_img,
@@ -412,16 +412,6 @@ def main(args) :
     test_dataset = Dataset_PFS_PNU(csv_path = args.test_clinical,
                         data_dir = args.test_img,
                         label_col = 'BCR')
-        
-    #class_weights = [0.5824742268041238, 3.53125]  ### 반대가 되면 된다
-    #class_weights = [0.5623115577889447, 4.512096774193548]
-    #class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
-    
-    #focal_loss = FocalLoss(
-    #    alpha=class_weights,  # 클래스별 가중치
-    #    gamma=args.gamma,           # focusing parameter (높을수록 어려운 샘플에 집중)
-    #    reduction='mean'
-    #).to(device)
     
     binary_loss = nn.CrossEntropyLoss()
     
@@ -429,13 +419,7 @@ def main(args) :
         model = ABMIL(n_classes=2, mode='binary', dropout=args.dropout, layer_norm = args.layer_norm, attention_branch=args.attn_branch)
     else : 
         model = ABMIL(n_classes=2, mode='binary', dropout=0.0, layer_norm = args.layer_norm, attention_branch=args.attn_branch)
-    
-    ####### 중단된 이유로 이어서 진행!!
-
-    #if torch.cuda.device_count() > 1:
-    #    print(f"Using {torch.cuda.device_count()} GPUs")
-    #    model = nn.DataParallel(model, device_ids=[0, 1, 2]).to(device)  # 명시적으로 device_ids 지정
-    
+        
     model = model.to(device)
     print(model)
     
@@ -444,9 +428,3 @@ def main(args) :
         
 if __name__ == "__main__":
 	main(args)
-    
-    
-    
-    
-    
-    

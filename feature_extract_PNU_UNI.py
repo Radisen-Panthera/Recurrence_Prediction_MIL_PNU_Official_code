@@ -63,35 +63,35 @@ def get_eval_transforms(mean, std, target_img_size = -1):
 
 def kde_density_sampling(coords, num_samples, bandwidth=50.0, min_dist=50.0):
     """
-    KDE + 거리 제약 기반 샘플링 함수
+    Sampling function based on KDE + a distance constraint.
 
     Args:
-        coords (np.ndarray): (N, 2) 형태의 coordinate 배열
-        num_samples (int): 샘플링할 패치 수
-        bandwidth (float): KDE bandwidth 값
-        min_dist (float): 선택된 점들 간 최소 거리
+        coords (np.ndarray): coordinate array of shape (N, 2)
+        num_samples (int): number of patches to sample
+        bandwidth (float): KDE bandwidth value
+        min_dist (float): minimum distance between selected points
 
     Returns:
-        selected_coords (np.ndarray): (num_samples, 2) 형태의 최종 샘플링된 좌표들
+        selected_coords (np.ndarray): final sampled coordinates of shape (num_samples, 2)
     """
-    # Step 1: KDE 모델 학습 -> 
+    # Step 1: Fit the KDE model
     kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth)
     kde.fit(coords)
 
-    # Step 2: 각 좌표의 log-density 추정 및 확률로 변환
+    # Step 2: Estimate the log-density of each coordinate and convert to a probability
     log_dens = kde.score_samples(coords)
     prob = np.exp(log_dens)
     prob = prob / prob.sum()
 
-    # Step 3: 확률 기반 초기 샘플링 (여유 있게 더 뽑음)
+    # Step 3: Probability-based initial sampling (draw a few extra as a margin)
     #oversample_factor = 3
-    oversample_factor = 1 ### 이 부분도 수행하지 않음! 최대한 BIAS를 제거한다.
+    oversample_factor = 1 ### Not applied here either — remove as much bias as possible.
     num_candidate = num_samples * oversample_factor
     candidate_indices = np.random.choice(len(coords), size=num_candidate, p=prob)
 
     candidate_coords = coords[candidate_indices]
 
-    # Step 4: 거리 제약 기반 선택
+    # Step 4: Selection under the distance constraint
     selected_coords = []
     for pt in tqdm(candidate_coords):
         if len(selected_coords) == 0:
@@ -170,16 +170,16 @@ def feature_extracting(args, imgList, transform, model) :
         tile_path = f'{args.root_h5}/{slide_name}.h5'
         slide_path = os.path.join(args.root_wsi, name)
 
-        # 데이터셋 및 로더 정의
+        # Define the dataset and loader
         dataset = PatchDataset(imglist=imgList, transform=transform, slide_path=slide_path, tile_path=tile_path, patch_size=args.patch_size)
         loader = DataLoader(dataset=dataset, batch_size=16, pin_memory=True, shuffle=False)
         
-        # 출력 파일 경로
+        # Output file path
         h5_file_path = os.path.join(args.output_dir, f'{slide_name}.h5')
         
         if slide_name+'.h5' not in os.listdir(args.output_dir) : 
             with h5py.File(h5_file_path, 'w') as h5_file:
-                total_patches = len(dataset)  # 전체 패치 수
+                total_patches = len(dataset)  # total number of patches
                 feat_dataset = h5_file.create_dataset(
                     "features",
                     shape=(total_patches, 1024), ### UNI feature size 1024
@@ -191,7 +191,7 @@ def feature_extracting(args, imgList, transform, model) :
                     dtype=np.float32
                 )
                 
-                # 배치별로 처리하며 인덱스 관리
+                # Process batch by batch, managing the running index
                 start_idx = 0
                 for i, batch in enumerate(tqdm(loader, desc=f"Processing {slide_name}", dynamic_ncols=True)):
                     patch, coord = batch['img'], batch['coord']  
@@ -202,7 +202,7 @@ def feature_extracting(args, imgList, transform, model) :
                     batch_size = patch.shape[0]
                     end_idx = start_idx + batch_size
 
-                    # 배치 단위로 데이터 저장
+                    # Save data batch by batch
                     feat_dataset[start_idx:end_idx] = features.cpu().numpy()
                     coord_dataset[start_idx:end_idx] = coord.cpu().numpy()
                     
