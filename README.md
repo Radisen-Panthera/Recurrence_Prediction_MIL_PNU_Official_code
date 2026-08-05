@@ -5,8 +5,7 @@ framework that predicts **biochemical recurrence (BCR)** after radical prostatec
 **attention-based multiple-instance learning (MIL)** model.
 
 The MIL backbone is adapted from [MCAT](https://github.com/mahmoodlab/MCAT/tree/master).
-Preprint: **Efficient AI-Driven Multi-Section Whole Slide Image Analysis for Biochemical Recurrence Prediction in Prostate Cancer**,
-[arXiv:2603.20273](https://arxiv.org/abs/2603.20273)
+Preprint: [arXiv:2603.20273](https://arxiv.org/abs/2603.20273)
 
 ---
 
