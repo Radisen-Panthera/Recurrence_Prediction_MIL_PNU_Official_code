@@ -1,4 +1,4 @@
-# Efficient AI-Driven Multi-Section Whole-Slide Image Analysis for Biochemical Recurrence Prediction in Prostate Cancer
+# A Computationally Efficient Multi-Section Whole Slide Image Analysis for Capturing Prostate Cancer Multifocality in Biochemical Recurrence Prediction
 
 This repository provides the code for a computationally efficient **multi-section whole-slide image (WSI)** analysis
 framework that predicts **biochemical recurrence (BCR)** after radical prostatectomy using an
