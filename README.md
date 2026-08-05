@@ -6,7 +6,7 @@ framework that predicts **biochemical recurrence (BCR)** after radical prostatec
 
 The MIL backbone is adapted from [MCAT](https://github.com/mahmoodlab/MCAT/tree/master).
 Preprint: **Efficient AI-Driven Multi-Section Whole Slide Image Analysis for Biochemical Recurrence Prediction in Prostate Cancer**,
-[arXiv:XXXX.XXXXX](https://arxiv.org/abs/XXXX.XXXXX)  <!-- TODO: insert the correct arXiv ID -->
+[arXiv:2603.20273](https://arxiv.org/abs/2603.20273)
 
 ---
 
@@ -117,10 +117,12 @@ per-patient AI risk score. The resulting scores are saved to a dataframe used by
 
 ---
 
+## Model weights:
+The trained model weights are available from the corresponding author upon reasonable request.
+
 ## Data availability
 
-The internal cohort contains sensitive patient information and cannot be shared publicly.
-The external validation set (CHIMERA) is available at <https://chimera.grand-challenge.org/>.
+The internal dataset contains sensitive patient information and cannot be shared publicly, but de-identified data may be made available from the corresponding author upon reasonable request and subject to institutional/IRB approval. The external validation cohort (CHIMERA) is publicly available at <https://chimera.grand-challenge.org/>.
 
 ## Citation
 
