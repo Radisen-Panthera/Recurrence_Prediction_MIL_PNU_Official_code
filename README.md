@@ -30,7 +30,6 @@ Code_available/
 ├── Final_evaluation.ipynb              # Stage 4: evaluation (AUC, C-index, KM, Cox, calibration, DCA)
 ├── models/
 │   ├── model_double.py                 # Attention-based MIL (ABMIL) with class-specific branches
-│   └── model_transmil.py               # TransMIL variant
 ├── datasets/
 │   └── dataset_pfs_pnu.py              # Dataset / dataloader definitions
 ├── utils/
